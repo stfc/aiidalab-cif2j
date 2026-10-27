@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+title: "AiiDAlab CIF2J App"
+massage: "If you use this software, please cite it as below."
+type: software
+authors:
+  - family-names: Speake
+    given-names: Benjamin
+    orcid: "https://orcid.org/0000-0002-5690-9470"
+repository-code: "https://github.com/stfc/aiidalab-cif2j"
+abstract: "AiiDAlab UI for computing magnetic exchange interactions via the aiida-cif2j Wannier90 + TB2J workflow."
+license: BSD-3-Clause
+version: 0.1.0
+date-released: "2026-10-27"
