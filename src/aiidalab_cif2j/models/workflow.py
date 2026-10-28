@@ -45,6 +45,10 @@ class Cif2JWorkflowModel(HasTraits):
         WannierProjectionChoice, WannierProjectionChoice.ANALYTIC, allow_none=False
     )
 
+    #: Pseudopotential family forwarded to ``get_builder_from_protocol``, e.g.
+    #: ``"SSSP/1.3/PBE/efficiency"``.
+    pseudo_family = Unicode("", allow_none=True)
+
     #: Empty ⇒ let ``WannierTB2JWorkChain`` auto-detect magnetic elements from a
     #: ``MagneticStructureData`` input.
     magnetic_elements = List(trait=Unicode(), default_value=[])
@@ -57,3 +61,17 @@ class Cif2JWorkflowModel(HasTraits):
     #: Forced serial by default; see ``get_builder_from_protocol``'s own
     #: ``wannier90_withmpi`` docstring for why.
     wannier90_withmpi = Bool(False)
+
+    def validate(self) -> bool:
+        """
+        Validate the model's inputs.
+
+        Returns
+        -------
+        bool
+            True if a pseudopotential family has been selected, False otherwise.
+        """
+        if not self.pseudo_family:
+            print("ERROR: No pseudopotential family selected.")
+            return False
+        return True

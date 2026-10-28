@@ -90,6 +90,15 @@ class WorkflowWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
         )
         tl.link((self.projection_type, "value"), (model, "projection_type"))
 
+        self.pseudo_family = ipw.Text(
+            value=model.pseudo_family,
+            placeholder="e.g. SSSP/1.3/PBE/efficiency",
+            description="Pseudopotential family:",
+            style=style,
+            layout=layout,
+        )
+        tl.link((self.pseudo_family, "value"), (model, "pseudo_family"))
+
         self.magnetic_elements = ipw.Text(
             value=", ".join(model.magnetic_elements),
             placeholder="Leave blank to auto-detect",
@@ -161,6 +170,8 @@ class WorkflowWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
         add_button_style_class(self.submit_btn)
         self.submit_btn.on_click(self._submit)
 
+        self.error = ipw.HTML("")
+
         self.children = [
             cif2j_button_style(),
             self.info,
@@ -168,8 +179,10 @@ class WorkflowWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
             self.spin_type,
             self.electronic_type,
             self.projection_type,
+            self.pseudo_family,
             self.magnetic_elements,
             self.advanced,
+            self.error,
             self.submit_btn,
         ]
         self.rendered = True
@@ -197,6 +210,12 @@ class WorkflowWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
 
     def _submit(self, _=None) -> None:
         """Mark the workflow configuration step as complete."""
+        if not self.model.validate():
+            self.error.value = (
+                "<p style='color:red;'>No pseudopotential family selected.</p>"
+            )
+            return
+        self.error.value = ""
         self.submit_btn.disabled = True
         self.submit_btn.description = "Submitted"
         self.state = self.State.SUCCESS

@@ -27,7 +27,6 @@ class MultiCodeResourcesModel(tl.HasTraits):
     projwfc_code = tl.Unicode("", allow_none=True).tag(sync=True)
     open_grid_code = tl.Unicode("", allow_none=True).tag(sync=True)
 
-    pseudo_family = tl.Unicode("", allow_none=True).tag(sync=True)
     process_label = tl.Unicode("").tag(sync=True)
     process_description = tl.Unicode("").tag(sync=True)
     submitted = tl.Bool(False).tag(sync=True)
@@ -66,14 +65,10 @@ class MultiCodeResourcesModel(tl.HasTraits):
         Returns
         -------
         bool
-            True if all required codes and the pseudopotential family are set,
-            False otherwise.
+            True if all required codes are set, False otherwise.
         """
         missing = [name for name in REQUIRED_CODES if not self.code_label(name)]
         if missing:
             print(f"ERROR: No code selected for: {', '.join(missing)}.")
-            return False
-        if not self.pseudo_family:
-            print("ERROR: No pseudopotential family selected.")
             return False
         return True

@@ -100,15 +100,6 @@ class ResourceSetupBox(ipw.VBox):
         self.optional_codes_box.set_title(0, "Optional codes")
         self.optional_codes_box.selected_index = None
 
-        self.pseudo_family = ipw.Text(
-            value=model.pseudo_family,
-            placeholder="e.g. SSSP/1.3/PBE/efficiency",
-            description="Pseudopotential family:",
-            style={"description_width": "180px"},
-            layout=ipw.Layout(width="80%"),
-        )
-        tl.link((self.pseudo_family, "value"), (model, "pseudo_family"))
-
         self.label = ipw.Text(
             value=model.process_label,
             placeholder="Enter process label",
@@ -131,7 +122,6 @@ class ResourceSetupBox(ipw.VBox):
             cif2j_button_style(),
             *self.required_rows,
             self.optional_codes_box,
-            self.pseudo_family,
             self.label,
             self.description,
         ]

@@ -79,6 +79,8 @@ class Cif2JProcess:
         if not structure_model.has_structure and not structure_model.has_file:
             print("No structure provided.")
             return False
+        if not model.workflow_model.validate():
+            return False
         return True
 
     def submit_process(self) -> None:
@@ -108,7 +110,7 @@ class Cif2JProcess:
         builder_kwargs = {
             "codes": codes,
             "structure": structure,
-            "pseudo_family": resources_model.pseudo_family,
+            "pseudo_family": workflow_model.pseudo_family,
             "protocol": workflow_model.protocol.value,
             "spin_type": workflow_model.spin_type,
             "electronic_type": workflow_model.electronic_type,

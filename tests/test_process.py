@@ -60,9 +60,16 @@ def test_validate_model_requires_structure():
     assert Cif2JProcess.validate_model(model) is False
 
 
-def test_validate_model_passes_with_structure_file():
-    """Validation passes when a structure file is provided."""
+def test_validate_model_requires_pseudo_family():
+    """Validation fails when a structure is provided but no pseudo family is chosen."""
     model = _fake_main_app_model(structure_file=object())
+    assert Cif2JProcess.validate_model(model) is False
+
+
+def test_validate_model_passes_with_structure_file_and_pseudo_family():
+    """Validation passes when a structure file and pseudo family are provided."""
+    model = _fake_main_app_model(structure_file=object())
+    model.workflow_model.pseudo_family = "SSSP/1.3/PBE/efficiency"
     assert Cif2JProcess.validate_model(model) is True
 
 
@@ -78,7 +85,7 @@ def test_submit_process_builds_and_submits():
     model.resources_model.pw2wannier90_code = "pw2wannier90@localhost"
     model.resources_model.wannier90_code = "wannier90@localhost"
     model.resources_model.tb2j_code = "tb2j@localhost"
-    model.resources_model.pseudo_family = "SSSP/1.3/PBE/efficiency"
+    model.workflow_model.pseudo_family = "SSSP/1.3/PBE/efficiency"
     model.resources_model.process_label = "my label"
     model.resources_model.process_description = "my description"
 

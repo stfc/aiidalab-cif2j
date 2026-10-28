@@ -35,6 +35,14 @@ def test_workflow_model_accepts_magnetic_elements():
     assert model.magnetic_elements == ["Fe", "Mn"]
 
 
+def test_workflow_model_requires_pseudo_family():
+    """Validation fails until a pseudopotential family is chosen."""
+    model = Cif2JWorkflowModel()
+    assert model.validate() is False
+    model.pseudo_family = "SSSP/1.3/PBE/efficiency"
+    assert model.validate() is True
+
+
 def _resources_model(**codes) -> MultiCodeResourcesModel:
     model = MultiCodeResourcesModel()
     for name, label in codes.items():
@@ -45,28 +53,15 @@ def _resources_model(**codes) -> MultiCodeResourcesModel:
 def test_resources_model_requires_all_required_codes():
     """Validation fails if any required code is missing."""
     model = _resources_model(pw="pw@localhost", pw2wannier90="p2w@localhost")
-    model.pseudo_family = "SSSP/1.3/PBE/efficiency"
     assert model.validate() is False
 
 
-def test_resources_model_requires_pseudo_family():
-    """Validation fails if all codes are set but no pseudo family is chosen."""
+def test_resources_model_validates_with_all_required_codes():
+    """Validation passes once all required codes are set."""
     model = _resources_model(
         pw="pw@localhost",
         pw2wannier90="p2w@localhost",
         wannier90="w90@localhost",
         tb2j="tb2j@localhost",
     )
-    assert model.validate() is False
-
-
-def test_resources_model_validates_with_all_required_fields():
-    """Validation passes once all required codes and the pseudo family are set."""
-    model = _resources_model(
-        pw="pw@localhost",
-        pw2wannier90="p2w@localhost",
-        wannier90="w90@localhost",
-        tb2j="tb2j@localhost",
-    )
-    model.pseudo_family = "SSSP/1.3/PBE/efficiency"
     assert model.validate() is True
