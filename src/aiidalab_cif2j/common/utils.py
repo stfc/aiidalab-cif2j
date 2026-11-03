@@ -1,6 +1,7 @@
 """Small common widgets used accross the application."""
 
 import ipywidgets as ipw
+from aiida.orm import Group, QueryBuilder
 
 #: CSS class applied to buttons that should use the sleek/modern styling.
 CIF2J_BUTTON_CLASS = "cif2j-sleek-btn"
@@ -57,6 +58,26 @@ def add_button_style_class(*buttons):
     """
     for button in buttons:
         button.add_class(CIF2J_BUTTON_CLASS)
+
+
+def get_installed_pseudo_family_labels() -> list[str]:
+    """Return the labels of all pseudopotential families installed via ``aiida-pseudo``.
+
+    Families are ``Group`` nodes whose ``type_string`` starts with
+    ``pseudo.family``. Empty groups (e.g. a family install that was
+    interrupted) are excluded, since they can't actually be used by a
+    workflow.
+
+    Returns
+    -------
+    list[str]
+        Sorted family labels, e.g. ``["SSSP/1.3/PBE/efficiency", ...]``.
+    """
+    query = QueryBuilder()
+    query.append(Group, filters={"type_string": {"like": "pseudo.family%"}})
+    return sorted(
+        group.label for group in query.all(flat=True) if len(group.nodes) > 0
+    )
 
 
 class LoadingWidget(ipw.HBox):

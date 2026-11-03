@@ -11,7 +11,11 @@ import aiidalab_widgets_base as awb
 import ipywidgets as ipw
 import traitlets as tl
 
-from aiidalab_cif2j.common.utils import add_button_style_class, cif2j_button_style
+from aiidalab_cif2j.common.utils import (
+    add_button_style_class,
+    cif2j_button_style,
+    get_installed_pseudo_family_labels,
+)
 from aiidalab_cif2j.models.workflow import Cif2JWorkflowModel
 
 
@@ -90,14 +94,27 @@ class WorkflowWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
         )
         tl.link((self.projection_type, "value"), (model, "projection_type"))
 
-        self.pseudo_family = ipw.Text(
-            value=model.pseudo_family,
-            placeholder="e.g. SSSP/1.3/PBE/efficiency",
+        pseudo_family_labels = get_installed_pseudo_family_labels()
+        self.pseudo_family = ipw.Dropdown(
+            options=[("Select a pseudopotential family…", "")]
+            + [(label, label) for label in pseudo_family_labels],
+            value=model.pseudo_family if model.pseudo_family in pseudo_family_labels else "",
             description="Pseudopotential family:",
             style=style,
             layout=layout,
+            disabled=not pseudo_family_labels,
         )
         tl.link((self.pseudo_family, "value"), (model, "pseudo_family"))
+
+        self.pseudo_family_warning = ipw.HTML(
+            ""
+            if pseudo_family_labels
+            else (
+                "<p style='color:#b35900;'>No pseudopotential families installed."
+                " Run e.g. <code>aiida-pseudo install sssp</code> in this"
+                " environment, then reload the app.</p>"
+            )
+        )
 
         self.magnetic_elements = ipw.Text(
             value=", ".join(model.magnetic_elements),
@@ -180,6 +197,7 @@ class WorkflowWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
             self.electronic_type,
             self.projection_type,
             self.pseudo_family,
+            self.pseudo_family_warning,
             self.magnetic_elements,
             self.advanced,
             self.error,
