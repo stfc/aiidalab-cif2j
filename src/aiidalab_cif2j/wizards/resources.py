@@ -27,7 +27,13 @@ _CODE_DESCRIPTIONS = {
 class CodeSelectorRow(ipw.HBox):
     """A single "code dropdown + refresh" row, linked to one model trait."""
 
-    def __init__(self, model: MultiCodeResourcesModel, code_name: str, **kwargs):
+    def __init__(
+        self,
+        model: MultiCodeResourcesModel,
+        code_name: str,
+        auto_default: bool = True,
+        **kwargs,
+    ):
         """
         CodeSelectorRow constructor.
 
@@ -38,10 +44,15 @@ class CodeSelectorRow(ipw.HBox):
         code_name : str
             One of the code names in ``REQUIRED_CODES``/``OPTIONAL_CODES``;
             selects which ``{code_name}_code`` trait this row is linked to.
+        auto_default : bool
+            Whether to pre-select a matching installed code as the default.
+            Disabled for optional codes so they stay opt-in rather than being
+            silently wired up behind the collapsed "Optional codes" section.
         **kwargs :
             Keyword arguments passed to the `ipywidgets.HBox.__init__()`.
         """
         self.code_name = code_name
+        self.auto_default = auto_default
         self.code = ipw.Dropdown(
             description=_CODE_DESCRIPTIONS.get(code_name, code_name),
             style={"description_width": "180px"},
@@ -66,12 +77,27 @@ class CodeSelectorRow(ipw.HBox):
         return
 
     def update_codes(self, _=None) -> None:
-        """Update the list of available codes."""
+        """Update the list of available codes, pre-selecting a sensible default.
+
+        The default is the first code whose executable matches
+        ``{code_name}.x`` (e.g. ``pw`` -> ``pw.x``), if any is installed. An
+        already-valid selection (manual or previously auto-detected) is left
+        untouched.
+        """
         qb = QueryBuilder()
         qb.append((InstalledCode, ContainerizedCode, PortableCode))
-        codes = qb.all()
-        code_labels = [f"{code[0].label}@{code[0].computer.label}" for code in codes]
+        codes = [code for code, in qb.all()]
+        code_labels = [f"{code.label}@{code.computer.label}" for code in codes]
         self.code.options = ["", *code_labels]
+
+        if not self.auto_default or self.code.value in code_labels:
+            return
+
+        executable_name = f"{self.code_name}.x".lower()
+        for code, label in zip(codes, code_labels):
+            if code.get_executable().name.lower() == executable_name:
+                self.code.value = label
+                return
         return
 
 
@@ -93,7 +119,9 @@ class ResourceSetupBox(ipw.VBox):
         self.model = model
 
         self.required_rows = [CodeSelectorRow(model, name) for name in REQUIRED_CODES]
-        self.optional_rows = [CodeSelectorRow(model, name) for name in OPTIONAL_CODES]
+        self.optional_rows = [
+            CodeSelectorRow(model, name, auto_default=False) for name in OPTIONAL_CODES
+        ]
         self.optional_codes_box = ipw.Accordion(
             children=[ipw.VBox(children=self.optional_rows)]
         )
