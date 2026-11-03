@@ -42,7 +42,9 @@ class Cif2JWorkflowModel(HasTraits):
     spin_type = UseEnum(SpinType, SpinType.COLLINEAR, allow_none=False)
     electronic_type = UseEnum(ElectronicType, ElectronicType.METAL, allow_none=False)
     projection_type = UseEnum(
-        WannierProjectionChoice, WannierProjectionChoice.ANALYTIC, allow_none=False
+        WannierProjectionChoice,
+        WannierProjectionChoice.ATOMIC_PROJECTORS_QE,
+        allow_none=False,
     )
 
     #: Pseudopotential family forwarded to ``get_builder_from_protocol``, e.g.
