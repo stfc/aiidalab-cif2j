@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Restart the daemon so AiiDA picks up entry points from dependencies
+# installed via pip (e.g. aiida-cif2j, aiida-quantumespresso) as part of
+# this app's install.
+verdi daemon restart --reset
+
+# aiida-wannier90 and aiida-wannier90-workflows are required by
+# aiida-cif2j's WannierTB2JWorkChain but are not published on PyPI, so they
+# can't be listed in install_requires. aiida-cif2j ships its own
+# `cif2j wannier90 install` command for this (console script from the
+# `aiida-cif2j` dependency), so we call that here instead of duplicating its
+# pinned versions in this app. Backgrounded and detached since it can take a
+# while, and guarded by a lock in case this is triggered more than once.
+(
+    flock 9
+    if python -c "import aiida_wannier90_workflows" 2>/dev/null; then
+        echo "aiida-wannier90-workflows is already installed."
+    else
+        cif2j wannier90 install
+        verdi daemon restart --reset
+    fi
+) 9>"$HOME/.install-wannier90-workflows.lock" & disown

@@ -24,9 +24,13 @@ Running the underlying workflow additionally requires:
 
 - A configured AiiDA profile and computer, with codes installed for `pw.x`, `pw2wannier90.x`,
   `wannier90.x` and TB2J (see the **Setup Resources** page within the app).
-- The [`aiida-cif2j`](https://github.com/stfc/aiida-cif2j) plugin.
-- [`aiida-wannier90-workflows`](https://github.com/aiidateam/aiida-wannier90-workflows), which is not
-  published on PyPI and must be installed from git — see `aiida-cif2j`'s own README for the exact command.
+- The [`aiida-cif2j`](https://github.com/stfc/aiida-cif2j) plugin, installed automatically as a
+  dependency of this app.
+- [`aiida-wannier90`](https://github.com/aiidateam/aiida-wannier90) and
+  [`aiida-wannier90-workflows`](https://github.com/aiidateam/aiida-wannier90-workflows), neither of
+  which is published on PyPI and so can't be declared as regular dependencies. They are installed
+  automatically from GitHub, via `aiida-cif2j`'s own `cif2j wannier90 install` command, by this app's
+  `post_install` script, which AiiDAlab runs after installing the app.
 
 ## For Developers
 
