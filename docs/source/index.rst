@@ -20,4 +20,9 @@ ESPRESSO + Wannier90 + TB2J pipeline. For the underlying AiiDA plugin itself, se
    user_guide/history_page
    user_guide/node_viewers
 
+
+.. toctree::
+   :maxdepth: 2
+   :caption: API
+
    api_docs/modules
