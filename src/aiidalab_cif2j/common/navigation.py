@@ -5,9 +5,7 @@ from functools import partial
 import ipywidgets as ipw
 
 from aiidalab_cif2j.common.utils import add_button_style_class, cif2j_button_style
-from aiidalab_cif2j.utils import open_link_in_new_tab
-
-_APPS_DIRECTORY = "/apps/apps/"
+from aiidalab_cif2j.utils import APPS_DIRECTORY, open_link_in_new_tab
 
 
 class QuickAccessButtons(ipw.HBox):
@@ -32,7 +30,7 @@ class QuickAccessButtons(ipw.HBox):
         self.new_calc_link.on_click(
             partial(
                 open_link_in_new_tab,
-                _APPS_DIRECTORY + "cif2j/notebooks/main.ipynb",
+                APPS_DIRECTORY + "cif2j/notebooks/main.ipynb",
             )
         )
 
@@ -46,7 +44,7 @@ class QuickAccessButtons(ipw.HBox):
         self.history_link.on_click(
             partial(
                 open_link_in_new_tab,
-                _APPS_DIRECTORY + "cif2j/notebooks/history.ipynb",
+                APPS_DIRECTORY + "cif2j/notebooks/history.ipynb",
             )
         )
 
@@ -60,7 +58,7 @@ class QuickAccessButtons(ipw.HBox):
         self.resource_setup_link.on_click(
             partial(
                 open_link_in_new_tab,
-                _APPS_DIRECTORY + "cif2j/notebooks/resources.ipynb",
+                APPS_DIRECTORY + "cif2j/notebooks/resources.ipynb",
             )
         )
 

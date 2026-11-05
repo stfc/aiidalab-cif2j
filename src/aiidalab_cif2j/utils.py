@@ -4,6 +4,9 @@ from importlib import import_module
 
 from IPython.display import Javascript, display
 
+#: Base path of the app's own notebooks, used to build links opened in a new tab.
+APPS_DIRECTORY = "/apps/apps/"
+
 
 def open_link_in_new_tab(path: str, _=None) -> None:
     """

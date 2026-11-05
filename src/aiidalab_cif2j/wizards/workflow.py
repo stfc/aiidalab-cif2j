@@ -6,6 +6,7 @@ step is a single parameter form rather than a tabbed selector.
 """
 
 import json
+from functools import partial
 
 import aiidalab_widgets_base as awb
 import ipywidgets as ipw
@@ -17,6 +18,7 @@ from aiidalab_cif2j.common.utils import (
     get_installed_pseudo_family_labels,
 )
 from aiidalab_cif2j.models.workflow import Cif2JWorkflowModel
+from aiidalab_cif2j.utils import APPS_DIRECTORY, open_link_in_new_tab
 
 
 def _enum_dropdown(enum_cls, value, **kwargs) -> ipw.Dropdown:
@@ -25,6 +27,17 @@ def _enum_dropdown(enum_cls, value, **kwargs) -> ipw.Dropdown:
         options=[(member.name, member) for member in enum_cls],
         value=value,
         **kwargs,
+    )
+
+
+def _pseudo_family_warning_html(pseudo_family_labels: list[str]) -> str:
+    """Return the warning HTML to show when no pseudopotential family is installed."""
+    if pseudo_family_labels:
+        return ""
+    return (
+        "<p style='color:#b35900;'>No pseudopotential families installed."
+        " Run e.g. <code>aiida-pseudo install sssp</code> in this"
+        " environment, then reload the app.</p>"
     )
 
 
@@ -106,14 +119,38 @@ class WorkflowWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
         )
         tl.link((self.pseudo_family, "value"), (model, "pseudo_family"))
 
-        self.pseudo_family_warning = ipw.HTML(
-            ""
-            if pseudo_family_labels
-            else (
-                "<p style='color:#b35900;'>No pseudopotential families installed."
-                " Run e.g. <code>aiida-pseudo install sssp</code> in this"
-                " environment, then reload the app.</p>"
+        self.pseudo_family_manage_btn = ipw.Button(
+            description="Manage",
+            button_style="info",
+            tooltip="Open the pseudopotential manager to install or inspect families",
+            icon="external-link",
+            layout={"width": "auto"},
+        )
+        self.pseudo_family_manage_btn.on_click(
+            partial(
+                open_link_in_new_tab,
+                APPS_DIRECTORY + "cif2j/notebooks/pseudos.ipynb",
             )
+        )
+
+        self.pseudo_family_refresh_btn = ipw.Button(
+            description="Refresh",
+            tooltip="Refresh the list of installed pseudopotential families",
+            icon="refresh",
+            layout={"width": "auto"},
+        )
+        self.pseudo_family_refresh_btn.on_click(self._refresh_pseudo_families)
+
+        add_button_style_class(
+            self.pseudo_family_manage_btn, self.pseudo_family_refresh_btn
+        )
+        self.pseudo_family_buttons = ipw.HBox(
+            children=[self.pseudo_family_manage_btn, self.pseudo_family_refresh_btn],
+            layout=ipw.Layout(width="80%", justify_content="flex-end"),
+        )
+
+        self.pseudo_family_warning = ipw.HTML(
+            _pseudo_family_warning_html(pseudo_family_labels)
         )
 
         self.magnetic_elements = ipw.Text(
@@ -197,6 +234,7 @@ class WorkflowWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
             self.electronic_type,
             self.projection_type,
             self.pseudo_family,
+            self.pseudo_family_buttons,
             self.pseudo_family_warning,
             self.magnetic_elements,
             self.advanced,
@@ -204,6 +242,22 @@ class WorkflowWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
             self.submit_btn,
         ]
         self.rendered = True
+        return
+
+    def _refresh_pseudo_families(self, _=None) -> None:
+        """Re-query the installed pseudopotential families and update the dropdown."""
+        pseudo_family_labels = get_installed_pseudo_family_labels()
+        current_value = self.pseudo_family.value
+        self.pseudo_family.options = [("Select a pseudopotential family…", "")] + [
+            (label, label) for label in pseudo_family_labels
+        ]
+        self.pseudo_family.value = (
+            current_value if current_value in pseudo_family_labels else ""
+        )
+        self.pseudo_family.disabled = not pseudo_family_labels
+        self.pseudo_family_warning.value = _pseudo_family_warning_html(
+            pseudo_family_labels
+        )
         return
 
     def _on_magnetic_elements_change(self, change: dict) -> None:
