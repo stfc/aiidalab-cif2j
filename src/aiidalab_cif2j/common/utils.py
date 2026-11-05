@@ -75,9 +75,7 @@ def get_installed_pseudo_family_labels() -> list[str]:
     """
     query = QueryBuilder()
     query.append(Group, filters={"type_string": {"like": "pseudo.family%"}})
-    return sorted(
-        group.label for group in query.all(flat=True) if len(group.nodes) > 0
-    )
+    return sorted(group.label for group in query.all(flat=True) if len(group.nodes) > 0)
 
 
 class LoadingWidget(ipw.HBox):
