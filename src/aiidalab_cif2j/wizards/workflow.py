@@ -111,7 +111,9 @@ class WorkflowWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
         self.pseudo_family = ipw.Dropdown(
             options=[("Select a pseudopotential family…", "")]
             + [(label, label) for label in pseudo_family_labels],
-            value=model.pseudo_family if model.pseudo_family in pseudo_family_labels else "",
+            value=model.pseudo_family
+            if model.pseudo_family in pseudo_family_labels
+            else "",
             description="Pseudopotential family:",
             style=style,
             layout=layout,
