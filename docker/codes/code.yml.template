@@ -1,0 +1,12 @@
+label: __LABEL__
+description: __DESCRIPTION__
+computer: localhost
+filepath_executable: __ENV__/bin/__EXECUTABLE__
+default_calc_job_plugin: __PLUGIN__
+use_double_quotes: false
+with_mpi: __WITH_MPI__
+prepend_text: |
+  eval "$(conda shell.posix hook)"
+  conda activate __ENV__
+  export OMP_NUM_THREADS=1
+append_text: ""
