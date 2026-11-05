@@ -3,25 +3,71 @@ requires = ["setuptools>=62.6"]
 build-backend = "setuptools.build_meta"
 
 
+[project]
+name = "aiidalab-cif2j"
+version = "0.1.0"
+description = "AiiDAlab UI for the aiida-cif2j plugin, computing magnetic exchange interactions from a CIF/MCIF structure via a Wannier90 + TB2J workflow."
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Dr. Benjamin T. Speake", email = "benjamin.speake@stfc.ac.uk" },
+]
+requires-python = ">=3.12"
+classifiers = [
+    "Framework :: AiiDA",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Development Status :: 4 - Beta",
+]
+dependencies = [
+    "aiida-core>=2.6",
+    "aiidalab-widgets-base",
+    "aiida-cif2j>=0.0.1",
+    "alc-aiidalab-widgets[magnetic,pseudo]>=0.3.0",
+    "aiida-quantumespresso",
+]
+
+[project.urls]
+Homepage = "https://github.com/stfc/aiidalab-cif2j"
+Source = "https://github.com/stfc/aiidalab-cif2j"
+"Bug Tracker" = "https://github.com/stfc/aiidalab-cif2j/issues"
+Documentation = "https://stfc.github.io/aiidalab-cif2j"
+Logo = "https://raw.githubusercontent.com/stfc/aiidalab-cif2j/refs/heads/main/images/cif2j.png"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-cov>=6.0", "ruff>=0.11.0", "pre-commit"]
+docs = ["sphinx>=8.0.2", "piccolo-theme>=0.14.0", "sphinx-toolbox", "numpydoc"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.aiidalab]
+title = "CIF2J"
+categories = ["quantum", "magnetism"]
+
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.ruff]
 target-version = "py310"
-exclude = ["conf.py",]
+exclude = ["conf.py"]
 
 [tool.ruff.lint]
 select = [
     # flake8-bugbear
     "B",
     # pylint
-    "C", "R",
+    "C",
+    "R",
     # pydocstyle
     "D",
     # pycodestyle
-    "E", "W",
+    "E",
+    "W",
     # Pyflakes
-    "F", "FA",
+    "F",
+    "FA",
     # isort
     "I",
     # pep8-naming
