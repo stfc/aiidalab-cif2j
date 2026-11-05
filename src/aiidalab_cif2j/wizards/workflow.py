@@ -162,13 +162,6 @@ class WorkflowWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
         )
         self.magnetic_elements.observe(self._on_magnetic_elements_change, "value")
 
-        self.wannier90_withmpi = ipw.Checkbox(
-            value=model.wannier90_withmpi,
-            description="Run wannier90.x under MPI",
-            style=style,
-        )
-        tl.link((self.wannier90_withmpi, "value"), (model, "wannier90_withmpi"))
-
         self.tb2j_parameters = ipw.Textarea(
             value=json.dumps(model.tb2j_parameters, indent=2),
             placeholder="{}",
@@ -197,7 +190,6 @@ class WorkflowWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
             children=[
                 ipw.VBox(
                     children=[
-                        self.wannier90_withmpi,
                         self.tb2j_parameters,
                         self.tb2j_options,
                         self.json_error,

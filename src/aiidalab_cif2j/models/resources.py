@@ -8,6 +8,15 @@ REQUIRED_CODES = ("pw", "pw2wannier90", "wannier90", "tb2j")
 #: Optional codes accepted by ``Wannier90BandsWorkChain``/``get_builder_from_protocol``.
 OPTIONAL_CODES = ("projwfc", "open_grid")
 
+#: Codes that actually run under MPI. ``pw``/``pw2wannier90`` resources are
+#: computed internally by ``Wannier90BandsWorkChain`` from the protocol/
+#: structure (no override exposed, so no MPI controls are shown for them
+#: either, see ``aiidalab_cif2j.process`` for how that could be done via an
+#: ``overrides`` dict if ever needed). ``tb2j`` (``wann2J.py``) is a
+#: single-process Python script; ``aiida-cif2j``'s own README documents
+#: setting ``with_mpi: false`` on its ``Code``, so it's excluded here too.
+MPI_CAPABLE_CODES = ("wannier90",)
+
 
 class MultiCodeResourcesModel(tl.HasTraits):
     """Model for the resource setup stage.
@@ -26,6 +35,14 @@ class MultiCodeResourcesModel(tl.HasTraits):
     tb2j_code = tl.Unicode("", allow_none=True).tag(sync=True)
     projwfc_code = tl.Unicode("", allow_none=True).tag(sync=True)
     open_grid_code = tl.Unicode("", allow_none=True).tag(sync=True)
+
+    #: MPI settings for the codes in :data:`MPI_CAPABLE_CODES`. ``wannier90``
+    #: is forced to single-task resources by ``get_builder_from_protocol``
+    #: unless ``wannier90_withmpi`` is set (see ``aiida_cif2j.workflows.wannier``);
+    #: ``wannier90_num_mpiprocs`` is not yet forwarded anywhere, since that
+    #: workflow only exposes a boolean switch, not a process count.
+    wannier90_withmpi = tl.Bool(False).tag(sync=True)
+    wannier90_num_mpiprocs = tl.Int(1).tag(sync=True)
 
     process_label = tl.Unicode("").tag(sync=True)
     process_description = tl.Unicode("").tag(sync=True)
@@ -57,6 +74,36 @@ class MultiCodeResourcesModel(tl.HasTraits):
             The configured ``label@computer`` for the code, or an empty string.
         """
         return getattr(self, f"{code_name}_code", "")
+
+    def code_withmpi(self, code_name: str) -> bool:
+        """Return whether MPI is enabled for a given code.
+
+        Parameters
+        ----------
+        code_name : str
+            One of :data:`MPI_CAPABLE_CODES`.
+
+        Returns
+        -------
+        bool
+            The configured MPI flag for the code, or False if it has none.
+        """
+        return getattr(self, f"{code_name}_withmpi", False)
+
+    def code_num_mpiprocs(self, code_name: str) -> int:
+        """Return the configured number of MPI processes for a given code.
+
+        Parameters
+        ----------
+        code_name : str
+            One of :data:`MPI_CAPABLE_CODES`.
+
+        Returns
+        -------
+        int
+            The configured process count for the code, or 1 if it has none.
+        """
+        return getattr(self, f"{code_name}_num_mpiprocs", 1)
 
     def validate(self) -> bool:
         """

@@ -117,7 +117,7 @@ class Cif2JProcess:
             "projection_type": getattr(
                 WannierProjectionType, workflow_model.projection_type.name
             ),
-            "wannier90_withmpi": workflow_model.wannier90_withmpi,
+            "wannier90_withmpi": resources_model.wannier90_withmpi,
         }
         if workflow_model.magnetic_elements:
             builder_kwargs["magnetic_elements"] = list(workflow_model.magnetic_elements)
@@ -129,9 +129,24 @@ class Cif2JProcess:
         workchain = WorkflowFactory("cif2j.wannier_tb2j")
         # `get_builder_from_protocol` already fills in each sub-process's own
         # `metadata.options.resources` from the protocol/structure (and forces
-        # `wannier90.x` serial unless `wannier90_withmpi` is set); per-code
-        # resource overrides aren't exposed in this app yet.
+        # `wannier90.x` serial unless `wannier90_withmpi` is set); when it's
+        # set, `resources` is left at the protocol default of
+        # `{"num_machines": 1}` (no explicit process count), so we set
+        # `resources_model.wannier90_num_mpiprocs` directly on the returned
+        # builder below. `pw`/`pw2wannier90` resources *can* be overridden too
+        # (an `overrides` dict is forwarded all the way down to each
+        # `PwBaseWorkChain`), but this app doesn't expose that yet, since it
+        # also needs `-npools` to be set sensibly alongside any process
+        # count. `tb2j` (`wann2J.py`) isn't MPI-capable at all (`aiida-cif2j`'s
+        # README has its `Code` configured with `with_mpi: false`), so
+        # `resources_model` has no MPI trait for it.
         builder = workchain.get_builder_from_protocol(**builder_kwargs)
+
+        if resources_model.wannier90_withmpi:
+            builder.wannier90.wannier90.metadata.options.resources = {
+                "num_machines": 1,
+                "num_mpiprocs_per_machine": resources_model.wannier90_num_mpiprocs,
+            }
 
         self.node = submit(builder)
         self.node.label = resources_model.process_label

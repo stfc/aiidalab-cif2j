@@ -15,7 +15,7 @@ with a deferred import.
 from enum import Enum
 
 from aiida_quantumespresso.common.types import ElectronicType, SpinType
-from traitlets import Bool, Dict, HasTraits, List, Unicode, UseEnum
+from traitlets import Dict, HasTraits, List, Unicode, UseEnum
 
 
 class Protocol(Enum):
@@ -59,10 +59,6 @@ class Cif2JWorkflowModel(HasTraits):
     #: as JSON in the wizard's "Advanced" section.
     tb2j_parameters = Dict(default_value={})
     tb2j_options = Dict(default_value={})
-
-    #: Forced serial by default; see ``get_builder_from_protocol``'s own
-    #: ``wannier90_withmpi`` docstring for why.
-    wannier90_withmpi = Bool(False)
 
     def validate(self) -> bool:
         """

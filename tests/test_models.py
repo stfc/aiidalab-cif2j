@@ -6,7 +6,7 @@ tests without one, mirroring ``aiidalab-chemshell``'s profile-free test
 suite.
 """
 
-from aiidalab_cif2j.models.resources import MultiCodeResourcesModel
+from aiidalab_cif2j.models.resources import MPI_CAPABLE_CODES, MultiCodeResourcesModel
 from aiidalab_cif2j.models.structure import StructureInputModel
 from aiidalab_cif2j.models.workflow import Cif2JWorkflowModel, Protocol
 
@@ -25,7 +25,6 @@ def test_workflow_model_defaults():
     assert model.magnetic_elements == []
     assert model.tb2j_parameters == {}
     assert model.tb2j_options == {}
-    assert model.wannier90_withmpi is False
 
 
 def test_workflow_model_accepts_magnetic_elements():
@@ -65,3 +64,18 @@ def test_resources_model_validates_with_all_required_codes():
         tb2j="tb2j@localhost",
     )
     assert model.validate() is True
+
+
+def test_resources_model_mpi_defaults():
+    """MPI settings default to disabled/single-process for MPI-capable codes."""
+    model = MultiCodeResourcesModel()
+    for name in MPI_CAPABLE_CODES:
+        assert model.code_withmpi(name) is False
+        assert model.code_num_mpiprocs(name) == 1
+
+
+def test_resources_model_mpi_unknown_code_defaults():
+    """Codes outside MPI_CAPABLE_CODES fall back to the same defaults."""
+    model = MultiCodeResourcesModel()
+    assert model.code_withmpi("pw") is False
+    assert model.code_num_mpiprocs("pw") == 1

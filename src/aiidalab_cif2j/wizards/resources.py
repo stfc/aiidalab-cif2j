@@ -3,10 +3,11 @@
 import aiidalab_widgets_base as awb
 import ipywidgets as ipw
 import traitlets as tl
-from aiida.orm import ContainerizedCode, InstalledCode, PortableCode, QueryBuilder
+from alc_aiidalab_widgets.widgets import CodeSelector
 
 from aiidalab_cif2j.common.utils import add_button_style_class, cif2j_button_style
 from aiidalab_cif2j.models.resources import (
+    MPI_CAPABLE_CODES,
     OPTIONAL_CODES,
     REQUIRED_CODES,
     MultiCodeResourcesModel,
@@ -22,83 +23,6 @@ _CODE_DESCRIPTIONS = {
     "projwfc": "projwfc.x (optional)",
     "open_grid": "open_grid.x (optional)",
 }
-
-
-class CodeSelectorRow(ipw.HBox):
-    """A single "code dropdown + refresh" row, linked to one model trait."""
-
-    def __init__(
-        self,
-        model: MultiCodeResourcesModel,
-        code_name: str,
-        auto_default: bool = True,
-        **kwargs,
-    ):
-        """
-        CodeSelectorRow constructor.
-
-        Parameters
-        ----------
-        model : MultiCodeResourcesModel
-            The model holding the resolved code labels.
-        code_name : str
-            One of the code names in ``REQUIRED_CODES``/``OPTIONAL_CODES``;
-            selects which ``{code_name}_code`` trait this row is linked to.
-        auto_default : bool
-            Whether to pre-select a matching installed code as the default.
-            Disabled for optional codes so they stay opt-in rather than being
-            silently wired up behind the collapsed "Optional codes" section.
-        **kwargs :
-            Keyword arguments passed to the `ipywidgets.HBox.__init__()`.
-        """
-        self.code_name = code_name
-        self.auto_default = auto_default
-        self.code = ipw.Dropdown(
-            description=_CODE_DESCRIPTIONS.get(code_name, code_name),
-            style={"description_width": "180px"},
-            layout={"width": "70%"},
-        )
-        self.update_codes()
-        tl.link((self.code, "value"), (model, f"{code_name}_code"))
-
-        self.refresh_button = ipw.Button(
-            tooltip="Refresh the list of available codes",
-            icon="refresh",
-            layout={"width": "15%"},
-        )
-        self.refresh_button.on_click(self.update_codes)
-        add_button_style_class(self.refresh_button)
-
-        super().__init__(
-            children=[self.code, self.refresh_button],
-            layout={"width": "100%"},
-            **kwargs,
-        )
-        return
-
-    def update_codes(self, _=None) -> None:
-        """Update the list of available codes, pre-selecting a sensible default.
-
-        The default is the first code whose executable matches
-        ``{code_name}.x`` (e.g. ``pw`` -> ``pw.x``), if any is installed. An
-        already-valid selection (manual or previously auto-detected) is left
-        untouched.
-        """
-        qb = QueryBuilder()
-        qb.append((InstalledCode, ContainerizedCode, PortableCode))
-        codes = [code for code, in qb.all()]
-        code_labels = [f"{code.label}@{code.computer.label}" for code in codes]
-        self.code.options = ["", *code_labels]
-
-        if not self.auto_default or self.code.value in code_labels:
-            return
-
-        executable_name = f"{self.code_name}.x".lower()
-        for code, label in zip(codes, code_labels):
-            if code.get_executable().name.lower() == executable_name:
-                self.code.value = label
-                return
-        return
 
 
 class ResourceSetupBox(ipw.VBox):
@@ -118,10 +42,39 @@ class ResourceSetupBox(ipw.VBox):
         super().__init__(layout={"margin": "auto", "width": "80%"}, **kwargs)
         self.model = model
 
-        self.required_rows = [CodeSelectorRow(model, name) for name in REQUIRED_CODES]
-        self.optional_rows = [
-            CodeSelectorRow(model, name, auto_default=False) for name in OPTIONAL_CODES
+        self.required_rows = [
+            CodeSelector(
+                model,
+                name,
+                description=_CODE_DESCRIPTIONS.get(name, name),
+                show_mpi=name in MPI_CAPABLE_CODES,
+            )
+            for name in REQUIRED_CODES
         ]
+        self.optional_rows = [
+            CodeSelector(
+                model,
+                name,
+                description=_CODE_DESCRIPTIONS.get(name, name),
+                auto_default=False,
+                show_mpi=name in MPI_CAPABLE_CODES,
+            )
+            for name in OPTIONAL_CODES
+        ]
+
+        self.refresh_btn = ipw.Button(
+            description="Refresh all",
+            tooltip="Refresh the list of available codes for every row",
+            icon="refresh",
+            layout={"width": "auto"},
+        )
+        self.refresh_btn.on_click(self._refresh_all)
+        add_button_style_class(self.refresh_btn)
+        self.refresh_row = ipw.HBox(
+            children=[self.refresh_btn],
+            layout=ipw.Layout(width="100%", justify_content="flex-end"),
+        )
+
         self.optional_codes_box = ipw.Accordion(
             children=[ipw.VBox(children=self.optional_rows)]
         )
@@ -148,11 +101,18 @@ class ResourceSetupBox(ipw.VBox):
 
         self.children = [
             cif2j_button_style(),
+            self.refresh_row,
             *self.required_rows,
             self.optional_codes_box,
             self.label,
             self.description,
         ]
+
+    def _refresh_all(self, _=None) -> None:
+        """Refresh the list of available codes for every row."""
+        for row in (*self.required_rows, *self.optional_rows):
+            row.update_codes()
+        return
 
 
 class ComputationalResourcesWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
