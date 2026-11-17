@@ -3,7 +3,7 @@
 import aiidalab_widgets_base as awb
 import ipywidgets as ipw
 from aiida.common.links import LinkType
-from aiida.orm import FolderData, Node, ProcessNode
+from aiida.orm import Node, ProcessNode
 from alc_aiidalab_widgets.viewers import ALC_AIIDA_VIEWER_MAPPING
 from IPython.display import clear_output, display
 from traitlets import Instance, observe
@@ -66,48 +66,11 @@ class CustomAiidaNodeViewWidget(ipw.VBox):
                 )
 
         # Handle CIF2J specific output nodes
-        incoming_links = node.get_incoming(link_type=LinkType.CREATE).all()
-        if incoming_links:
-            link = incoming_links[0]
-            if (
-                link.node.process_type
-                and "cif2j" in link.node.process_type
-                and link.link_label == "retrieved"
-                and isinstance(node, FolderData)
-            ):
-                _viewer = TB2JResultsViewWidget
+        # incoming_links = node.get_incoming(link_type=LinkType.CREATE).all()
+        # if incoming_links:
+        #     link = incoming_links[0]
 
         if _viewer:
             return _viewer(node, **kwargs)
         # No viewer registered for this type, return node itself
         return node
-
-
-class TB2JResultsViewWidget(ipw.VBox):
-    """
-    Placeholder viewer for a ``WannierTB2JCalculation``'s ``retrieved`` output.
-
-    TODO: parse the TB2J output files (e.g. ``exchange.out``) contained in the
-    retrieved ``FolderData`` and render the magnetic exchange parameters as a
-    table/plot. This is genuinely new domain work pending a chosen output
-    format, so this stub only lists the retrieved file names.
-    """
-
-    def __init__(self, node: FolderData, **kwargs):
-        """
-        TB2JResultsViewWidget Constructor.
-
-        Parameters
-        ----------
-        node : FolderData
-            The ``retrieved`` output of a ``WannierTB2JCalculation``.
-        """
-        super().__init__(**kwargs)
-        filenames = node.list_object_names()
-        items = "".join(f"<li><code>{name}</code></li>" for name in filenames)
-        self.children = [
-            ipw.HTML(
-                "<p>TB2J results viewer not yet implemented. Retrieved files:</p>"
-                f"<ul>{items}</ul>"
-            )
-        ]
