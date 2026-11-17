@@ -2,11 +2,17 @@
 
 import aiidalab_widgets_base as awb
 import ipywidgets as ipw
-from aiida.common.links import LinkType
 from aiida.orm import Node, ProcessNode
 from alc_aiidalab_widgets.viewers import ALC_AIIDA_VIEWER_MAPPING
 from IPython.display import clear_output, display
 from traitlets import Instance, observe
+
+from aiidalab_cif2j.common.exchange_coupling_viewer import ExchangeCouplingViewWidget
+
+#: App-local node viewers, checked before the shared ALC/awb mappings.
+CIF2J_AIIDA_VIEWER_MAPPING = {
+    "data.cif2j.exchange_coupling.ExchangeCouplingData.": ExchangeCouplingViewWidget,
+}
 
 
 class CustomAiidaNodeViewWidget(ipw.VBox):
@@ -52,23 +58,22 @@ class CustomAiidaNodeViewWidget(ipw.VBox):
 
     def _viewer(self, node: Node, **kwargs):
         """Create a viewer based on the type of Node being visualised."""
-        # First look for ALC developed node viewers
-        _viewer = ALC_AIIDA_VIEWER_MAPPING.get(node.node_type)
+        # First look for cif2j-specific node viewers
+        _viewer = CIF2J_AIIDA_VIEWER_MAPPING.get(node.node_type)
+        if not _viewer:
+            # Then look for ALC developed node viewers
+            _viewer = ALC_AIIDA_VIEWER_MAPPING.get(node.node_type)
         if not _viewer:
             # Fall back to default AiiDAlab developed node viewers
             _viewer = awb.viewers.AIIDA_VIEWER_MAPPING.get(node.node_type)
         if isinstance(node, ProcessNode):
             # Allow to register specific viewers based on node.process_type
+            _viewer = CIF2J_AIIDA_VIEWER_MAPPING.get(node.process_type, _viewer)  # type: ignore
             _viewer = ALC_AIIDA_VIEWER_MAPPING.get(node.process_type, _viewer)  # type: ignore
             if not _viewer:
                 _viewer = awb.viewers.AIIDA_VIEWER_MAPPING.get(
                     node.process_type, _viewer
                 )
-
-        # Handle CIF2J specific output nodes
-        # incoming_links = node.get_incoming(link_type=LinkType.CREATE).all()
-        # if incoming_links:
-        #     link = incoming_links[0]
 
         if _viewer:
             return _viewer(node, **kwargs)

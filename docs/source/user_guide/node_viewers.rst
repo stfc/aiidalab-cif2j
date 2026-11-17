@@ -28,11 +28,24 @@ and viewed individually via a dropdown.
 TB2J Results
 ~~~~~~~~~~~~
 
-The retrieved files from the TB2J calculation step currently have a dedicated viewer that
-lists the retrieved filenames (e.g. the ``TB2J.pickle`` output). It does not yet parse and
-display the computed exchange parameters as a table or plot -- for now, use the
-Folder/File Visualiser above to inspect the raw retrieved files, or load the
-``TB2J_pickle_file`` output node directly for further analysis outside AiiDAlab.
+The TB2J calculation step's ``TB2J.pickle`` output is parsed into several structured
+AiiDA data nodes, each with its own viewer:
+
+- **Exchange Couplings**: the isotropic exchange coupling for every magnetic-site pair
+  TB2J reports, shown with the Array Visualiser above (a sortable table, with a
+  "Plot Array" button to chart the coupling strength against distance). A checkbox
+  below the table toggles a 3D overlay drawing each coupling as an arrow between the
+  two sites on the structure, colour-binned by coupling strength.
+- **Magnetic Moments**: the per-atom magnetic moment vectors TB2J used, shown with the
+  Array Visualiser.
+- **DMI Vectors** and **Anisotropic Exchange**: the Dzyaloshinskii-Moriya interaction
+  vectors and anisotropic exchange tensors for each pair, shown with the Array
+  Visualiser. These only appear when the underlying TB2J run computed them (e.g. a
+  non-collinear/spin-orbit calculation); a run without them simply has no such node in
+  the process tree.
+
+The raw ``TB2J.pickle`` file itself remains available as the ``TB2J_pickle_file``
+output, viewable with the Folder/File Visualiser above, for analysis outside AiiDAlab.
 
 Single Value/AiiDA Node Viewer
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
