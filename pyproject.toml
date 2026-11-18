@@ -23,7 +23,7 @@ dependencies = [
     "aiida-core>=2.6",
     "aiidalab-widgets-base",
     "aiida-cif2j>=0.0.1",
-    "alc-aiidalab-widgets[magnetic,pseudo]>=0.3.0",
+    "alc-aiidalab-widgets[magnetic,pseudo]>=0.3.2",
     "aiida-quantumespresso",
 ]
 
