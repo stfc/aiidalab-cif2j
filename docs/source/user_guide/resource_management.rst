@@ -20,10 +20,10 @@ Quick Setup Local
 ------------------
 
 For users running AiiDAlab on their local machine, the top of the resource setup page
-provides three one-click buttons: **Install Quantum ESPRESSO**, **Install Wannier90**
-and **Install TB2J**. Together these cover every code the workflow needs, without
-having to separately install the `AiiDAlab Quantum ESPRESSO app
-<https://github.com/aiidalab/aiidalab-qe>`_ or manually compile Wannier90/TB2J.
+provides two one-click buttons: **Install Quantum ESPRESSO + Wannier90** and **Install
+TB2J**. Together these cover every code the workflow needs, without having to separately
+install the `AiiDAlab Quantum ESPRESSO app <https://github.com/aiidalab/aiidalab-qe>`_ or
+manually compile Wannier90/TB2J.
 
 .. note::
 
@@ -31,25 +31,26 @@ having to separately install the `AiiDAlab Quantum ESPRESSO app
     resource intensive, so for production runs it is recommended to use real HPC
     resources via :ref:`quick_setup_recipes`/:ref:`manual_setup` instead.
 
-Each button is independent and can be clicked in any order:
-
-- **Install Quantum ESPRESSO** installs the ``qe`` conda-forge package and creates
-  ``pw-7.4``, ``pw2wannier90-7.4``, ``projwfc-7.4`` and ``open_grid-7.4`` codes (the
-  version suffix matches whichever Quantum ESPRESSO version is bundled).
-- **Install Wannier90** installs the ``wannier90`` conda-forge package and creates a
-  ``wannier90-<version>`` code.
+- **Install Quantum ESPRESSO + Wannier90** installs the ``qe`` and ``wannier90``
+  conda-forge packages together and creates ``pw-7.6``, ``pw2wannier90-7.6``,
+  ``projwfc-7.6``, ``open_grid-7.6`` and ``wannier90-4.0.3`` codes. Quantum ESPRESSO and
+  Wannier90 are installed as a single combined step rather than two independent ones:
+  the ``qe`` conda-forge package bundles its own older, internal ``wannier90.x`` binary
+  at the same path the standalone ``wannier90`` package installs its own (correct) one
+  to, so installing them separately risked one silently overwriting the other's binary
+  depending on install order.
 - **Install TB2J** installs TB2J via ``pip`` and creates a ``tb2j-<version>`` code.
 
-All three share a single local conda environment, so the buttons are disabled while any
-one of them is running to avoid conflicting installs into it. Progress and the final
-outcome are reported beneath each button.
+Both share a single local conda environment, so the buttons are disabled while either of
+them is running to avoid conflicting installs into it. Progress and the final outcome are
+reported beneath each button.
 
-Before installing anything, each button first checks whether a suitable code already
-exists -- including one set up by the AiiDAlab Quantum ESPRESSO app, a previous Quick
-Setup Local run (in this or another AiiDAlab profile), or by hand -- and reuses it
-instead of installing a duplicate copy. If, for example, Quantum ESPRESSO is already
-available via the QE app, clicking **Install Quantum ESPRESSO** here will simply detect
-and reuse it rather than downloading a second copy.
+Before installing anything, each button first checks whether suitable codes already
+exist -- including ones set up by the AiiDAlab Quantum ESPRESSO app, a previous Quick
+Setup Local run (in this or another AiiDAlab profile), or by hand -- and reuses them
+instead of installing a duplicate copy. If, for example, Quantum ESPRESSO and Wannier90
+are already available from elsewhere, clicking **Install Quantum ESPRESSO + Wannier90**
+here will simply detect and reuse them rather than downloading a second copy.
 
 Once a button completes, the corresponding code(s) become available for selection in the
 workflow wizard's Computational Resources step (see :ref:`workflows`); click
