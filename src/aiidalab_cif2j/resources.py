@@ -64,14 +64,18 @@ class CodeSetupWidget(ipw.VBox, HasTraits):
 
 
 class QuickSetupLocalWidget(ipw.VBox):
-    """Widget for one-click local install of QE/Wannier90/TB2J and their codes.
+    """Widget for one-click local install of QE+Wannier90/TB2J and their codes.
 
-    Each button installs independently (e.g. a user who already has Quantum
-    ESPRESSO via the AiiDAlab Quantum ESPRESSO app can install just
-    `wannier90` here, without pulling in `qe` too), but all three write into
-    the same shared conda environment, so all three buttons are disabled
-    while any one is running to avoid concurrent conda/pip operations against
-    it.
+    Quantum ESPRESSO and Wannier90 are installed together as a single step
+    (see `local_install.install_qe_and_wannier90`), not via two independent
+    buttons: `qe`'s conda-forge package bundles its own internal
+    `bin/wannier90.x` at the exact same path the standalone `wannier90`
+    package installs its own (real) one to, so installing them separately -
+    in either order, even across two different quick-setup runs against the
+    same shared environment - risked one silently overwriting the other's
+    binary. Both buttons write into the same shared conda environment, so
+    both are disabled while either is running to avoid concurrent conda/pip
+    operations against it.
     """
 
     _SPINNER = "<i class='fa fa-spinner fa-spin fa-fw'></i>"
@@ -79,17 +83,12 @@ class QuickSetupLocalWidget(ipw.VBox):
     def __init__(self, **kwargs):
         self._buttons: list[ipw.Button] = []
 
-        qe_row, self.qe_status = self._make_row(
-            "Install Quantum ESPRESSO",
-            "Install Quantum ESPRESSO into a local conda environment and "
-            "create pw.x/pw2wannier90.x/projwfc.x/open_grid.x codes",
-            self._on_qe_clicked,
-        )
-        wannier90_row, self.wannier90_status = self._make_row(
-            "Install Wannier90",
-            "Install Wannier90 into a local conda environment and create a "
-            "wannier90.x code",
-            self._on_wannier90_clicked,
+        qe_wannier90_row, self.qe_wannier90_status = self._make_row(
+            "Install Quantum ESPRESSO + Wannier90",
+            "Install Quantum ESPRESSO and Wannier90 together into a local "
+            "conda environment and create pw.x/pw2wannier90.x/projwfc.x/"
+            "open_grid.x/wannier90.x codes",
+            self._on_qe_wannier90_clicked,
         )
         tb2j_row, self.tb2j_status = self._make_row(
             "Install TB2J",
@@ -99,8 +98,7 @@ class QuickSetupLocalWidget(ipw.VBox):
 
         children = [
             cif2j_button_style(),
-            qe_row,
-            wannier90_row,
+            qe_wannier90_row,
             tb2j_row,
         ]
         super().__init__(children=children, **kwargs)
@@ -186,56 +184,39 @@ class QuickSetupLocalWidget(ipw.VBox):
         self._loop.call_soon_threadsafe(_wrapper)
         return future.result()
 
-    def _ensure_qe(self, status: ipw.HTML) -> None:
-        """Install `qe` via conda, unless already covered."""
+    def _ensure_qe_and_wannier90(self, status: ipw.HTML) -> None:
+        """Install `qe`+`wannier90` together via conda, unless already covered.
+
+        Always installed together, not independently - see
+        `local_install.install_qe_and_wannier90`'s docstring for why.
+        """
         # ORM lookups (code detection) must run on the main thread.
         need_qe = self._call_on_loop(local_install.qe_needed)
-
-        if not need_qe:
-            self._set_status(
-                status,
-                "Quantum ESPRESSO codes already exist (e.g. from the "
-                "AiiDAlab Quantum ESPRESSO app); skipping install.",
-                "info",
-            )
-        elif local_install.qe_installed():
-            self._set_status(
-                status,
-                "Quantum ESPRESSO is already installed; reusing the "
-                "existing environment.",
-                "info",
-            )
-        else:
-            self._set_status(
-                status,
-                f"{self._SPINNER} Installing Quantum ESPRESSO via conda "
-                "(this can take several minutes) ...",
-                "working",
-            )
-            local_install.install_qe()
-        return
-
-    def _ensure_wannier90(self, status: ipw.HTML) -> None:
-        """Install `wannier90` via conda, unless already covered."""
         need_wannier90 = self._call_on_loop(local_install.wannier90_needed)
 
-        if not need_wannier90:
-            self._set_status(
-                status, "A Wannier90 code already exists; skipping install.", "info"
-            )
-        elif local_install.wannier90_installed():
+        if not need_qe and not need_wannier90:
             self._set_status(
                 status,
-                "Wannier90 is already installed; reusing the existing environment.",
+                "Quantum ESPRESSO and Wannier90 codes already exist (e.g. "
+                "Quantum ESPRESSO from the AiiDAlab Quantum ESPRESSO app); "
+                "skipping install.",
+                "info",
+            )
+        elif local_install.qe_installed() and local_install.wannier90_installed():
+            self._set_status(
+                status,
+                "Quantum ESPRESSO and Wannier90 are already installed; "
+                "reusing the existing environment.",
                 "info",
             )
         else:
             self._set_status(
                 status,
-                f"{self._SPINNER} Installing Wannier90 via conda ...",
+                f"{self._SPINNER} Installing Quantum ESPRESSO and Wannier90 "
+                "via conda (this can take several minutes) ...",
                 "working",
             )
-            local_install.install_wannier90()
+            local_install.install_qe_and_wannier90()
         return
 
     def _ensure_tb2j(self, status: ipw.HTML) -> None:
@@ -282,45 +263,26 @@ class QuickSetupLocalWidget(ipw.VBox):
         self._set_status(status, message, "success")
         return
 
-    def _run_qe(self) -> None:
-        """Install Quantum ESPRESSO and create its codes (background thread)."""
+    def _run_qe_and_wannier90(self) -> None:
+        """Install QE+Wannier90 and create their codes (background thread)."""
         from shutil import which
 
         try:
             if not which("conda"):
                 self._set_status(
-                    self.qe_status,
+                    self.qe_wannier90_status,
                     "Unable to install locally: conda is not available in "
                     "this environment.",
                     "error",
                 )
                 return
-            self._ensure_qe(self.qe_status)
-            self._create_codes(local_install.QE_CODES, self.qe_status)
-        except Exception as exc:  # noqa: BLE001 - surface any failure in the UI
-            self._set_status(
-                self.qe_status, f"Unexpected error: {self._error_html(exc)}", "error"
+            self._ensure_qe_and_wannier90(self.qe_wannier90_status)
+            self._create_codes(
+                (*local_install.QE_CODES, "wannier90"), self.qe_wannier90_status
             )
-        return
-
-    def _run_wannier90(self) -> None:
-        """Install Wannier90 and create its code (background thread)."""
-        from shutil import which
-
-        try:
-            if not which("conda"):
-                self._set_status(
-                    self.wannier90_status,
-                    "Unable to install locally: conda is not available in "
-                    "this environment.",
-                    "error",
-                )
-                return
-            self._ensure_wannier90(self.wannier90_status)
-            self._create_codes(("wannier90",), self.wannier90_status)
         except Exception as exc:  # noqa: BLE001 - surface any failure in the UI
             self._set_status(
-                self.wannier90_status,
+                self.qe_wannier90_status,
                 f"Unexpected error: {self._error_html(exc)}",
                 "error",
             )
@@ -337,12 +299,8 @@ class QuickSetupLocalWidget(ipw.VBox):
             )
         return
 
-    def _on_qe_clicked(self, _=None) -> None:
-        self._launch(self._run_qe)
-        return
-
-    def _on_wannier90_clicked(self, _=None) -> None:
-        self._launch(self._run_wannier90)
+    def _on_qe_wannier90_clicked(self, _=None) -> None:
+        self._launch(self._run_qe_and_wannier90)
         return
 
     def _on_tb2j_clicked(self, _=None) -> None:

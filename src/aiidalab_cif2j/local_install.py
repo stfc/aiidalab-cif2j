@@ -19,12 +19,22 @@ import os
 import pathlib
 import subprocess
 
-#: Pinned to match the version already used by the AiiDAlab Quantum ESPRESSO
-#: app's own post_install setup (``qe={QE_VERSION}``), so a machine with both
-#: apps installed ends up with compatible/identical QE binaries. ``wannier90``
-#: and TB2J have no equivalent pin to match (neither is pinned anywhere in
-#: ``aiida-cif2j``), so they're left unpinned.
-QE_VERSION = "7.4"
+#: Pinned to match the version baked into ``docker/Dockerfile``'s pre-built
+#: image, so a local quick-setup install and the Docker image behave
+#: identically. TB2J has no equivalent pin to match (not pinned anywhere
+#: else in ``aiida-cif2j``), so it's left unpinned.
+QE_VERSION = "7.6"
+
+#: Pinned to work around a conda-forge packaging issue: the ``qe`` package
+#: bundles its own internal ``bin/wannier90.x`` (an older copy it links
+#: against for ``pw2wannier90.x``, reporting itself as release 3.1.0) at the
+#: exact same path the standalone ``wannier90`` package installs its own
+#: (real) ``bin/wannier90.x`` to. Installing both into the same environment
+#: lets whichever package's files get linked last silently win that
+#: collision - see ``install_qe_and_wannier90``, which works around this by
+#: force-reinstalling ``wannier90`` last. ``docker/Dockerfile`` hit and fixed
+#: the identical issue the same way.
+WANNIER90_VERSION = "4.0.3"
 
 #: Shared conda environment for all codes below, so `pw2wannier90.x`/
 #: `wannier90.x` share the same MPI/BLAS/LAPACK stack.
@@ -49,12 +59,21 @@ CODES = {
 #: Codes provided by the conda-forge `qe` package.
 QE_CODES = ("pw", "pw2wannier90", "projwfc", "open_grid")
 
-#: For codes without a pinned version (unlike `QE_VERSION`), the conda/pip
-#: package name to look up the actually-installed version from, for labelling
-#: (see `code_label`). `TB2J`'s PyPI name differs in case from its `tb2j`
-#: code/calcjob name.
+#: Codes whose `code_label` is fully determined by a fixed version pin
+#: (`QE_VERSION`/`WANNIER90_VERSION`), without anything needing to be
+#: installed first. `find_existing_code` matches these by exact label
+#: (e.g. `pw-7.6`), not just executable name, so a `pw-7.4` code from an
+#: older install does *not* count as already providing `pw` once this
+#: module's own pin has moved to 7.6. `tb2j` has no such pin (its label
+#: depends on whatever version `pip` happens to install) and is matched by
+#: executable name instead, as before.
+_PINNED_CODES = (*QE_CODES, "wannier90")
+
+#: For codes without a pinned version (unlike `QE_VERSION`/`WANNIER90_VERSION`),
+#: the conda/pip package name to look up the actually-installed version from,
+#: for labelling (see `code_label`). `TB2J`'s PyPI name differs in case from
+#: its `tb2j` code/calcjob name.
 _VERSION_PACKAGE = {
-    "wannier90": "wannier90",
     "tb2j": "TB2J",
 }
 
@@ -121,24 +140,41 @@ def _qe_app_env_candidates() -> list[pathlib.Path]:
     """Return the env paths the AiiDAlab Quantum ESPRESSO app itself uses.
 
     Mirrors that app's own ``aiidalab_qe.setup.codes.get_qe_env()``: a
-    Docker-image-baked path first, then a user-level fallback.
+    Docker-image-baked parent directory first, then a user-level fallback.
+    Globs for ``quantum-espresso-*`` rather than hardcoding an exact version
+    suffix: that app's own pinned QE version is independent of (and has no
+    reason to match) this module's own :data:`QE_VERSION` - a previous
+    version of this function built the path from ``QE_VERSION`` directly,
+    which only ever worked by the two pins coincidentally being equal, and
+    silently stopped finding the app's env the moment they diverged.
     """
+    parents = (
+        pathlib.Path("/opt/conda/envs"),
+        pathlib.Path.home() / ".conda" / "envs",
+    )
     return [
-        pathlib.Path("/opt/conda/envs") / f"quantum-espresso-{QE_VERSION}",
-        pathlib.Path.home() / ".conda" / "envs" / f"quantum-espresso-{QE_VERSION}",
+        env
+        for parent in parents
+        if parent.is_dir()
+        for env in sorted(parent.glob("quantum-espresso-*"))
     ]
 
 
 def find_qe_env() -> pathlib.Path | None:
-    """Return an existing environment with a matching, usable `qe` install.
+    """Return an existing environment with a matching, usable `qe={QE_VERSION}` install.
 
     Checked in order: this module's own shared environment, then the paths
-    the AiiDAlab Quantum ESPRESSO app itself installs into. Conda
-    environments aren't scoped to an AiiDA profile, so an install done via
-    that app -- in this profile or another one entirely -- is reused instead
-    of installing a second copy of Quantum ESPRESSO. Only a candidate with
-    the exact `qe={QE_VERSION}` version *and* every :data:`QE_CODES`
-    executable actually present on disk counts as usable.
+    the AiiDAlab Quantum ESPRESSO app itself installs into (discovered by
+    globbing for `quantum-espresso-*`, not by guessing a version suffix -
+    see `_qe_app_env_candidates`). Conda environments aren't scoped to an
+    AiiDA profile, so an install done via that app -- in this profile or
+    another one entirely -- is reused instead of installing a second copy of
+    Quantum ESPRESSO, but only if it has the *exact* `qe={QE_VERSION}` this
+    module pins: `find_existing_code` now matches by versioned label (e.g.
+    `pw-{QE_VERSION}`), so a code this function backs must actually point at
+    binaries of that same version, not an arbitrary other one. Only a
+    candidate with every :data:`QE_CODES` executable actually present on
+    disk counts as usable.
 
     Returns
     -------
@@ -170,10 +206,11 @@ def wannier90_installed() -> bool:
 def code_label(code_name: str) -> str:
     """Return the AiiDA code label to use for `code_name`.
 
-    QE codes get a `{code_name}-{QE_VERSION}` label, matching the naming
-    convention the AiiDAlab Quantum ESPRESSO app's own post_install uses.
-    `wannier90`/`tb2j` have no equivalent external convention/pinned version
-    to match, so their actually-installed version (see `_VERSION_PACKAGE`) is
+    QE codes get a `{code_name}-{QE_VERSION}` label (matching the naming
+    convention the AiiDAlab Quantum ESPRESSO app's own post_install uses),
+    and `wannier90` a `{code_name}-{WANNIER90_VERSION}` label, since both are
+    pinned. `tb2j` has no equivalent external convention/pinned version to
+    match, so its actually-installed version (see `_VERSION_PACKAGE`) is
     looked up dynamically instead, falling back to a plain label if that
     can't be determined (e.g. called before anything is installed).
 
@@ -184,6 +221,8 @@ def code_label(code_name: str) -> str:
     """
     if code_name in QE_CODES:
         return f"{code_name}-{QE_VERSION}"
+    if code_name == "wannier90":
+        return f"{code_name}-{WANNIER90_VERSION}"
     package_name = _VERSION_PACKAGE.get(code_name)
     if package_name:
         version = _package_version(package_name)
@@ -192,39 +231,45 @@ def code_label(code_name: str) -> str:
     return code_name
 
 
-def _install_conda_packages(*package_specs: str) -> None:
-    """Install `package_specs` into the shared conda env, creating it if needed.
-
-    Independent packages are installed one at a time (rather than always
-    creating a fresh environment with everything at once), so e.g. a user who
-    already has Quantum ESPRESSO installed via the AiiDAlab Quantum ESPRESSO
-    app can install just `wannier90` here, without also pulling in `qe`.
-    """
+def _install_conda_packages(*package_specs: str, force_reinstall: bool = False) -> None:
+    """Install `package_specs` into the shared conda env, creating it if needed."""
     env = get_env()
     action = "install" if env.exists() else "create"
-    _run_checked(
-        [
-            "conda",
-            action,
-            "--yes",
-            "--override-channels",
-            "--channel",
-            "conda-forge",
-            "--prefix",
-            str(env),
-            *package_specs,
-        ]
+    cmd = [
+        "conda",
+        action,
+        "--yes",
+        "--override-channels",
+        "--channel",
+        "conda-forge",
+        "--prefix",
+        str(env),
+    ]
+    if force_reinstall:
+        cmd.append("--force-reinstall")
+    cmd.extend(package_specs)
+    _run_checked(cmd)
+
+
+def install_qe_and_wannier90() -> None:
+    """Install `qe={QE_VERSION}` and `wannier90={WANNIER90_VERSION}` together.
+
+    Installed as a single combined step, not two independent ones (unlike
+    `install_tb2j`): `qe`'s own conda-forge package bundles its own internal
+    `bin/wannier90.x` at the exact same path the standalone `wannier90`
+    package installs its own (real) `bin/wannier90.x` to (see
+    `WANNIER90_VERSION`'s docstring). Installing them separately - in either
+    order, even across two different quick-setup runs against the same
+    shared environment - risks one silently overwriting the other's binary
+    at that shared path. `wannier90` is force-reinstalled immediately
+    afterwards (a second, separate `conda install`, since `conda create`
+    does not support `--force-reinstall`) to guarantee its own binary wins
+    regardless of install order.
+    """
+    _install_conda_packages(f"qe={QE_VERSION}", f"wannier90={WANNIER90_VERSION}")
+    _install_conda_packages(
+        f"wannier90={WANNIER90_VERSION}", force_reinstall=True
     )
-
-
-def install_qe() -> None:
-    """Install `qe={QE_VERSION}` into the shared conda environment."""
-    _install_conda_packages(f"qe={QE_VERSION}")
-
-
-def install_wannier90() -> None:
-    """Install `wannier90` into the shared conda environment."""
-    _install_conda_packages("wannier90")
 
 
 def tb2j_installed() -> bool:
@@ -289,11 +334,19 @@ def get_localhost_computer():
 def find_existing_code(code_name: str):
     """Return an existing `localhost` code already providing `code_name`, if any.
 
-    Matches by executable basename (e.g. ``pw.x``) against *any* code already
+    For :data:`_PINNED_CODES` (QE codes and `wannier90`), matches by exact
+    AiiDA code label (`code_label(code_name)`, e.g. `pw-7.6`) -- this
+    distinguishes a code actually built against this module's current
+    pinned version from one built against some other version (e.g. an older
+    `pw-7.4` from a previous cif2j/QE-app install), so bumping
+    `QE_VERSION`/`WANNIER90_VERSION` correctly triggers a fresh install
+    rather than silently reusing mismatched binaries.
+
+    Other codes (just `tb2j`, with no fixed version pin) are matched by
+    executable basename (e.g. ``wann2J.py``) against *any* code already
     configured on `localhost`, not just one with the exact label this module
-    would itself use. This lets quick setup recognise codes already set up by
-    the AiiDAlab Quantum ESPRESSO app (labelled e.g. ``pw-7.4``), a previous
-    quick setup run, or by hand, instead of creating a duplicate installation.
+    would itself use -- there is no fixed expected label to compare against
+    before TB2J is actually installed and its version known.
 
     Parameters
     ----------
@@ -307,12 +360,21 @@ def find_existing_code(code_name: str):
     """
     from aiida.orm import ContainerizedCode, InstalledCode, PortableCode, QueryBuilder
 
-    executable_name = CODES[code_name][0].lower()
     qb = QueryBuilder()
     qb.append((InstalledCode, ContainerizedCode, PortableCode))
-    for (code,) in qb.all():
-        if code.computer.label != COMPUTER_LABEL:
-            continue
+    codes_on_localhost = (
+        code for (code,) in qb.all() if code.computer.label == COMPUTER_LABEL
+    )
+
+    if code_name in _PINNED_CODES:
+        expected_label = code_label(code_name)
+        return next(
+            (code for code in codes_on_localhost if code.label == expected_label),
+            None,
+        )
+
+    executable_name = CODES[code_name][0].lower()
+    for code in codes_on_localhost:
         try:
             found_name = code.get_executable().name.lower()
         except Exception:  # noqa: BLE001 - treat any resolution failure as "no match"

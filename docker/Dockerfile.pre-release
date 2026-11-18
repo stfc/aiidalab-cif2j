@@ -12,8 +12,8 @@ ARG CIF2J_APP_REPO=https://github.com/stfc/aiidalab-cif2j.git
 ARG CIF2J_APP_REF=main
 ENV CIF2J_APP_DIR=/opt/aiidalab-cif2j
 
-ENV CIF2J_QE_VERSION=7.4
-ENV CIF2J_WANNIER90_VERSION=3.1.0
+ENV CIF2J_QE_VERSION=7.6
+ENV CIF2J_WANNIER90_VERSION=4.0.3
 ENV CIF2J_TB2J_VERSION=0.9.22
 ENV CIF2J_ENV=${HOME}/.conda/envs/cif2j-${CIF2J_QE_VERSION}
 
@@ -21,10 +21,22 @@ USER ${NB_USER}
 WORKDIR ${HOME}
 
 # Install Quantum ESPRESSO and Wannier90 into a shared conda environment.
+#
+# conda-forge's `qe` package bundles its own internal `bin/wannier90.x` (an
+# older copy it links against for `pw2wannier90.x`, reporting itself as
+# Wannier90 release 3.1.0) at the exact same path the standalone `wannier90`
+# package installs its own (real 4.0.3) `bin/wannier90.x` to. Whichever
+# package's transaction links last silently wins that file collision -
+# `mamba create` installing both in one transaction has been observed to let
+# `qe`'s older copy win, so `wannier90` is force-reinstalled afterwards to
+# guarantee its binary ends up on disk, not `qe`'s.
 RUN mamba create --yes --override-channels --channel conda-forge \
         --prefix "${CIF2J_ENV}" \
         "qe=${CIF2J_QE_VERSION}" "wannier90=${CIF2J_WANNIER90_VERSION}" \
         "python<3.13" pip && \
+    mamba install --yes --override-channels --channel conda-forge \
+        --prefix "${CIF2J_ENV}" --force-reinstall \
+        "wannier90=${CIF2J_WANNIER90_VERSION}" && \
     mamba clean --all -f -y && \
     "${CIF2J_ENV}/bin/pip" install --no-cache-dir "TB2J==${CIF2J_TB2J_VERSION}"
 
